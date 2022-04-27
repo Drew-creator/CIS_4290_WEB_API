@@ -32,7 +32,10 @@ namespace API.Models
         public int AccessFailedCount { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-
+        public string CardNumber { get; set; }
+        public string ExpDate { get; set; }
+        public string Csv { get; set; }
+        public float? Amount { get; set; }
         public virtual ICollection<AspNetUserClaim> AspNetUserClaims { get; set; }
         public virtual ICollection<AspNetUserLogin> AspNetUserLogins { get; set; }
         public virtual ICollection<AspNetUserToken> AspNetUserTokens { get; set; }
