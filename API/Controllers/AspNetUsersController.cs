@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using API.Data;
 using API.Models;
+using Microsoft.AspNetCore.JsonPatch;
+using System.Diagnostics;
+using Newtonsoft.Json;
+using System.Runtime.Serialization.Json;
+using System.Text;
 
 namespace API.Controllers
 {
@@ -26,6 +31,8 @@ namespace API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AspNetUser>>> GetAspNetUsers()
         {
+            //Debug.WriteLine("CONTEXT HERE!!!!!!!!!!!!!!!!!!!: " + _context.AspNetUsers.FirstOrDefault(user => user.Id == id);
+
             return await _context.AspNetUsers.ToListAsync();
         }
 
@@ -43,109 +50,85 @@ namespace API.Controllers
             return aspNetUser;
         }
 
-        // PUT: api/AspNetUsers/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutAspNetUser(string id, AspNetUser aspNetUser)
-        {
-            if (id != aspNetUser.Id)
-            {
-                return BadRequest();
-            }
+        /*
+[
+    {
+        "value": 30,
+        "path": "/Amount",
+        "op": "replace",
+        "CardNumber": "1111 1111 1111 1111",
+        "ExpDate": "11/30",
+        "Csv": "111",
+        "FirstName": "Anedrew",
+        "LastName": "ngngng",
+        "UserName": "sdfsdf000@0.com"
+    }
+]
+        */
 
-            _context.Entry(aspNetUser).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!AspNetUserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
 
         [HttpPatch("{id}")]
-        public async Task<IActionResult> PatchAspNetUser(string id, AspNetUser aspNetUser)
+        public async Task<IActionResult> Patch(string id, JsonPatchDocument<AspNetUser> aspNetUser)
         {
-            if (id != aspNetUser.Id)
-            {
-                return BadRequest();
-            }
 
-            _context.Entry(aspNetUser).State = EntityState.Modified;
+            Request.EnableBuffering();
 
-            try
+            Request.Body.Position = 0;
+
+            var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
+            Auth myobj = JsonConvert.DeserializeObject<Auth>(rawRequestBody.Substring(1, rawRequestBody.Length - 2));
+            Debug.WriteLine("REQUEST BODY HEREEEEEEEEEE: " + myobj.FirstName);
+
+
+
+            if (aspNetUser != null)
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!AspNetUserExists(id))
+                var user = _context.AspNetUsers.FirstOrDefault(
+                    user => user.Id == id 
+                    && 
+                    user.UserName == myobj.UserName //loop and find user with matching id
+                    &&
+                    user.FirstName == myobj.FirstName
+                    &&
+                    user.LastName == myobj.LastName
+                    &&
+                    user.CardNumber == myobj.CardNumber
+                    &&
+                    user.Csv == myobj.Csv
+                    &&
+                    user.ExpDate == myobj.ExpDate
+                );
+
+                if (user == null)
                 {
-                    return NotFound();
+                    return BadRequest(ModelState);
                 }
-                else
+
+
+                if (user.Amount - myobj.value < 0)
                 {
-                    throw;
+                    return BadRequest(ModelState);
                 }
-            }
 
-            return NoContent();
-        }
-        // POST: api/AspNetUsers
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<AspNetUser>> PostAspNetUser(AspNetUser aspNetUser)
-        {
-            _context.AspNetUsers.Add(aspNetUser);
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                if (AspNetUserExists(aspNetUser.Id))
+                user.Amount = user.Amount - myobj.value;
+                Debug.WriteLine("AMOUNTTTTT!!!!!!!!! " + user.Amount);
+                aspNetUser.ApplyTo(user, ModelState); // apply changes to aspNetUser
+
+                if (!ModelState.IsValid)
                 {
-                    return Conflict();
+                    return BadRequest(ModelState);
                 }
-                else
-                {
-                    throw;
-                }
+
+                await _context.SaveChangesAsync(); // save changes to db
+
+                return Ok(user);
             }
-
-            return CreatedAtAction("GetAspNetUser", new { id = aspNetUser.Id }, aspNetUser);
-        }
-
-        // DELETE: api/AspNetUsers/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAspNetUser(string id)
-        {
-            var aspNetUser = await _context.AspNetUsers.FindAsync(id);
-            if (aspNetUser == null)
+            else
             {
-                return NotFound();
+                return BadRequest(ModelState);
             }
-
-            _context.AspNetUsers.Remove(aspNetUser);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
 
-        private bool AspNetUserExists(string id)
-        {
-            return _context.AspNetUsers.Any(e => e.Id == id);
-        }
+    
     }
 }
