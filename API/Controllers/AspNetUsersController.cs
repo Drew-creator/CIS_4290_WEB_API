@@ -77,7 +77,7 @@ namespace API.Controllers
 
             var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
             Auth myobj = JsonConvert.DeserializeObject<Auth>(rawRequestBody.Substring(1, rawRequestBody.Length - 2));
-            Debug.WriteLine("REQUEST BODY HEREEEEEEEEEE: " + myobj.FirstName);
+            Debug.WriteLine("REQUEST BODY HEREEEEEEEEEE: " + myobj);
 
 
 
@@ -101,13 +101,13 @@ namespace API.Controllers
 
                 if (user == null)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequest("Please check credentials again and correct them.");
                 }
 
 
                 if (user.Amount - myobj.value < 0)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequest("Insufficient funds. Card on hold");
                 }
 
                 user.Amount = user.Amount - myobj.value;
@@ -121,11 +121,11 @@ namespace API.Controllers
 
                 await _context.SaveChangesAsync(); // save changes to db
 
-                return Ok(user);
+                return Ok("Success! New balance is updated");
             }
             else
             {
-                return BadRequest(ModelState);
+                return BadRequest("Please check credentials again and correct them.");
             }
         }
 
