@@ -37,6 +37,7 @@ app.Use(async (context, next) =>
     await next(context);
 });
 
+
 app.UseAuthorization();
 
 app.MapControllers();

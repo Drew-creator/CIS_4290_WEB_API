@@ -13,6 +13,7 @@ using System.Diagnostics;
 using Newtonsoft.Json;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Net;
 
 namespace API.Controllers
 {
@@ -25,6 +26,15 @@ namespace API.Controllers
         public AspNetUsersController(CIS4290Context context)
         {
             _context = context;
+        }
+
+        private static Random random = new Random();
+
+        public static string RandomString(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
         // GET: api/AspNetUsers
@@ -77,7 +87,7 @@ namespace API.Controllers
 
             var rawRequestBody = await new StreamReader(Request.Body).ReadToEndAsync();
             Auth myobj = JsonConvert.DeserializeObject<Auth>(rawRequestBody.Substring(1, rawRequestBody.Length - 2));
-            Debug.WriteLine("REQUEST BODY HEREEEEEEEEEE: " + myobj);
+            Debug.WriteLine("REQUEST BODY HEREEEEEEEEEE: " + id);
 
 
 
@@ -101,17 +111,22 @@ namespace API.Controllers
 
                 if (user == null)
                 {
-                    return BadRequest("Please check credentials again and correct them.");
+                    return StatusCode(404);
                 }
 
 
                 if (user.Amount - myobj.value < 0)
                 {
-                    return BadRequest("Insufficient funds. Card on hold");
+                    return Ok("Insufficient funds. Card on hold");
                 }
 
-                user.Amount = user.Amount - myobj.value;
-                Debug.WriteLine("AMOUNTTTTT!!!!!!!!! " + user.Amount);
+                myobj.value = (float)(user.Amount - myobj.value);
+                var json = JsonConvert.SerializeObject(myobj);
+                var requestContent = new StringContent(json, Encoding.UTF8, "application/json-patch+json");
+                var stream = await requestContent.ReadAsStreamAsync();
+                Request.Body = stream;
+
+                Debug.WriteLine("AMOUNTTTTT!!!!!!!!! " + myobj.value);
                 aspNetUser.ApplyTo(user, ModelState); // apply changes to aspNetUser
 
                 if (!ModelState.IsValid)
@@ -121,12 +136,40 @@ namespace API.Controllers
 
                 await _context.SaveChangesAsync(); // save changes to db
 
-                return Ok("Success! New balance is updated");
+                Response response = new Response();
+                response.message = "Success! New balance is updated";
+                response.authToken = RandomString(40);
+                string jsonRes = JsonConvert.SerializeObject(response);
+                Update(myobj.value, myobj, id);
+                return Ok(jsonRes);
             }
             else
             {
-                return BadRequest("Please check credentials again and correct them.");
+                return StatusCode(404); 
             }
+        }
+        [HttpPost]
+        public string Update(float value, Auth myobj, string id)
+        {
+            var user = _context.AspNetUsers.FirstOrDefault(
+                    user => user.Id == id
+                    &&
+                    user.UserName == myobj.UserName //loop and find user with matching id
+                    &&
+                    user.FirstName == myobj.FirstName
+                    &&
+                    user.LastName == myobj.LastName
+                    &&
+                    user.CardNumber == myobj.CardNumber
+                    &&
+                    user.Csv == myobj.Csv
+                    &&
+                    user.ExpDate == myobj.ExpDate
+            );
+            user.Amount = value;
+            Debug.WriteLine("sdfjkfhasdkljfhasldkjfhalskdjfhasdS");
+            _context.SaveChangesAsync();
+            return "";
         }
 
     
