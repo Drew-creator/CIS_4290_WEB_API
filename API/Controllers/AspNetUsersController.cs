@@ -148,6 +148,31 @@ namespace API.Controllers
                 return StatusCode(404); 
             }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         [HttpPost]
         public string Update(float value, Auth myobj, string id)
         {
